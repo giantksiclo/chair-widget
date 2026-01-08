@@ -1,0 +1,41 @@
+appId: com.dental.chair-widget
+productName: Chair Widget
+copyright: Copyright 2024
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - src/main/**/*
+  - src/preload/**/*
+  - dist/renderer/**/*
+  - package.json
+  - "!**/*.map"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/.bin"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.png
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Chair Widget
+  runAfterFinish: true
+  allowElevation: true
+  include: "installer.nsh"
+
+extraResources:
+  - from: assets/
+    to: assets/
+    filter:
+      - "**/*"

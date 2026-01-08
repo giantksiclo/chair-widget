@@ -1,0 +1,275 @@
+/* 기본 리셋 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 위젯 컨테이너 */
+.widget-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #141414;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #fff;
+}
+
+/* 헤더 */
+.widget-header {
+  display: flex;
+  flex-direction: column;
+  background: rgba(30, 30, 30, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+/* 헤더 상단: 컨트롤 영역 */
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* 원장 탭 영역 - 줄바꿈 가능 */
+.doctor-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  flex-wrap: wrap;
+}
+
+/* 원장 탭 버튼 - 더 작게 */
+.doctor-tab {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #333;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #ccc;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.doctor-tab:hover {
+  background: #444;
+  color: #fff;
+}
+
+.doctor-tab.active {
+  background: #3b82f6;
+  border-color: #60a5fa;
+  color: #fff;
+}
+
+/* 헤더 컨트롤 버튼 */
+.control-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.control-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.control-btn.active {
+  background: rgba(245, 158, 11, 0.3);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.control-btn.close:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+}
+
+/* 환자 목록 - 세로모드 전용 */
+.patient-list {
+  flex: 1;
+  padding: 12px;
+  padding-top: 16px; /* 의사 위치 아이콘이 잘리지 않게 */
+  display: flex;
+  flex-direction: column;
+  gap: 14px; /* 카드 간격 늘림 (의사 위치 아이콘 공간) */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 스크롤바 스타일 */
+.patient-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.patient-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.patient-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.patient-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 빈 메시지 */
+.empty-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #666;
+  font-size: 14px;
+}
+
+/* 원장 호출 오버레이 */
+.doctor-call-overlay {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.doctor-call-card {
+  width: 360px;
+  background: linear-gradient(to right, #fef3c7, #fed7aa);
+  border: 3px solid #f59e0b;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.doctor-call-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(245, 158, 11, 0.2);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 16px;
+  font-weight: bold;
+  color: #b45309;
+}
+
+.doctor-call-icon {
+  font-size: 20px;
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.doctor-call-close {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: #b45309;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.doctor-call-close:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.doctor-call-message {
+  padding: 16px;
+  font-size: 15px;
+  color: #78350f;
+  line-height: 1.6;
+}
+
+.doctor-call-message .detail-cyan {
+  color: #0891b2;
+  margin-top: 8px;
+}
+
+.doctor-call-message .detail-purple {
+  color: #7c3aed;
+  margin-top: 4px;
+}
+
+.doctor-call-confirm {
+  width: 100%;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: bold;
+  background: #f59e0b;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.doctor-call-confirm:hover {
+  background: #d97706;
+}
+
+/* 의사/스텝 위치 표시 애니메이션 */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.7);
+  }
+}
+
+/* VIP 환자 애니메이션 */
+@keyframes pulse-red {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 2s infinite;
+}
