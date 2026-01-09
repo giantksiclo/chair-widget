@@ -17,10 +17,13 @@ function getWindowConfig() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
 
-  // 세로모드 전용: 너비 420px, 전체 높이, 우측 고정
+  // 저장된 높이 불러오기 (없으면 화면 높이 사용)
+  const savedHeight = store.get('windowHeight') || screenHeight;
+
+  // 세로모드 전용: 너비 420px 고정, 높이는 저장된 값 사용, 우측 고정
   return {
     width: 420,
-    height: screenHeight,
+    height: Math.min(savedHeight, screenHeight),
     x: screenWidth - 420,
     y: 0
   };
@@ -36,7 +39,10 @@ function createWindow() {
     backgroundColor: '#141414',
     alwaysOnTop: true,
     skipTaskbar: false,
-    resizable: false,
+    resizable: true,
+    minWidth: 420,
+    maxWidth: 420,
+    minHeight: 300,
     movable: true,
     hasShadow: true,
     webPreferences: {
@@ -44,6 +50,12 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.js')
     }
+  });
+
+  // 창 크기 변경 시 높이 저장
+  mainWindow.on('resize', () => {
+    const [, height] = mainWindow.getSize();
+    store.set('windowHeight', height);
   });
 
   // 개발 모드면 localhost, 아니면 빌드된 파일
@@ -110,6 +122,26 @@ ipcMain.handle('minimize-widget', () => {
 
 ipcMain.handle('hide-widget', () => {
   mainWindow.hide();
+});
+
+ipcMain.handle('toggle-height', () => {
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { height: screenHeight } = primaryDisplay.workAreaSize;
+  const [width, currentHeight] = mainWindow.getSize();
+  const [x] = mainWindow.getPosition();
+
+  const minHeight = 300;
+  const isMaximized = currentHeight >= screenHeight - 50; // 약간의 여유
+
+  if (isMaximized) {
+    // 최소 높이로 (하단 고정)
+    mainWindow.setBounds({ x, y: screenHeight - minHeight, width, height: minHeight });
+    store.set('windowHeight', minHeight);
+  } else {
+    // 최대 높이로 (상단부터)
+    mainWindow.setBounds({ x, y: 0, width, height: screenHeight });
+    store.set('windowHeight', screenHeight);
+  }
 });
 
 ipcMain.handle('close-widget', () => {

@@ -98,7 +98,7 @@ export function usePatients(supabase) {
       try {
         const { data, error } = await supabase.from('wait_patients')
           .select('*')
-          .in('status', ['waiting', 'treatmenting'])
+          .or('status.in.(waiting,treatmenting),is_consulting_mode.eq.true')
           .order('display_order', { ascending: true })
           .order('id', { ascending: true });
         if (error) {
@@ -194,15 +194,6 @@ export function useDoctorReplies(supabase, patients) {
                 ...prev,
                 [patient.id]: { reply, icon, timestamp: created_at }
               }));
-
-              // 15초 후 자동 제거
-              setTimeout(() => {
-                setDoctorReplies(prev => {
-                  const newReplies = { ...prev };
-                  delete newReplies[patient.id];
-                  return newReplies;
-                });
-              }, 15000);
             }
           } catch (err) {
             console.error('Error handling doctor reply:', err);

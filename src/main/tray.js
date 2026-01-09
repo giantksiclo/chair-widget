@@ -71,9 +71,10 @@ function createDefaultIcon() {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < size / 2 - 1) {
-        canvas[idx] = 66;
-        canvas[idx + 1] = 133;
-        canvas[idx + 2] = 244;
+        // 녹색 (체어 위젯용)
+        canvas[idx] = 16;
+        canvas[idx + 1] = 185;
+        canvas[idx + 2] = 129;
         canvas[idx + 3] = 255;
       } else {
         canvas[idx] = 0;

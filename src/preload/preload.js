@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hide: () => ipcRenderer.invoke('hide-widget'),
   close: () => ipcRenderer.invoke('close-widget'),
   toggle: () => ipcRenderer.invoke('toggle-widget'),
+  toggleHeight: () => ipcRenderer.invoke('toggle-height'),
 
   // 화면 정보
   getScreenInfo: () => ipcRenderer.invoke('get-screen-info'),

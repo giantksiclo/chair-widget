@@ -20,11 +20,10 @@ function ChairModeWidget({ settings }) {
   const doctorReplies = useDoctorReplies(supabase, patients);
 
   const [selectedDoctorId, setSelectedDoctorId] = useState(null);
-  const [doctorCallEnabled, setDoctorCallEnabled] = useState(settings?.doctorCallEnabled ?? true);
-  const [doctorCall, setDoctorCall] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
   const [expandedCardId, setExpandedCardId] = useState(null);
   const [showChairSelect, setShowChairSelect] = useState(null); // { patientId, currentChair }
+  const [callingPatientId, setCallingPatientId] = useState(null); // 호출 중인 환자 ID
 
   // 드래그 센서 설정
   const sensors = useSensors(
@@ -108,28 +107,12 @@ function ChairModeWidget({ settings }) {
     return tabs.filter(tab => tab.count > 0);
   }, [doctors, patients, staffModePatients.length, consultingPatients.length]);
 
-  // 원장 호출 브로드캐스트 수신
-  useEffect(() => {
-    if (!supabase || !doctorCallEnabled) return;
-
-    const channel = supabase.channel('doctor_calls_widget')
-      .on('broadcast', { event: 'call_doctor' }, (payload) => {
-        setDoctorCall(payload.payload);
-        try {
-          const audio = new Audio('/call-patient.mp3');
-          audio.play().catch(() => {});
-        } catch {}
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, doctorCallEnabled]);
-
   // 원장 호출
-  const handleCallDoctor = useCallback(async (patientName, chairNumber, doctorId, requestDetail, staffNotes) => {
+  const handleCallDoctor = useCallback(async (patientId, patientName, chairNumber, doctorId, requestDetail, staffNotes) => {
     if (!supabase) return;
+
+    // 호출 시작 상태 설정
+    setCallingPatientId(patientId);
 
     const doctor = doctors.find(d => d.id === doctorId);
     const doctorName = doctor?.name ? `${doctor.name} 원장님` : '원장님';
@@ -146,16 +129,17 @@ function ChairModeWidget({ settings }) {
       type: 'doctor_call'
     };
 
-    if (doctorCallEnabled) {
-      setDoctorCall(callData);
-    }
-
     await supabase.channel('doctor_calls').send({
       type: 'broadcast',
       event: 'call_doctor',
       payload: { ...callData, timestamp: Date.now() }
     });
-  }, [supabase, doctors, doctorCallEnabled]);
+
+    // 3초 후 호출 상태 해제
+    setTimeout(() => {
+      setCallingPatientId(null);
+    }, 3000);
+  }, [supabase, doctors]);
 
   // 상태 변경
   const handleStatusChange = useCallback(async (patientId, newStatus) => {
@@ -216,6 +200,94 @@ function ChairModeWidget({ settings }) {
       .update({ is_staff_mode: false })
       .eq('id', patientId);
   }, [supabase, setPatients]);
+
+  // 상담 모드 설정
+  const handleConsultingMode = useCallback(async (patientId) => {
+    if (!supabase) return;
+
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient || !patient.doctor_id) return;
+
+    const consultingStartTime = Date.now();
+
+    setPatients(prev => prev.map(p =>
+      p.id === patientId ? {
+        ...p,
+        is_consulting_mode: true,
+        consulting_start_time: consultingStartTime,
+        consulting_actual_start_time: null
+      } : p
+    ));
+
+    await supabase.from('wait_patients')
+      .update({
+        is_consulting_mode: true,
+        consulting_start_time: consultingStartTime,
+        consulting_actual_start_time: null
+      })
+      .eq('id', patientId);
+  }, [supabase, patients, setPatients]);
+
+  // 상담 시작 (상담대기 → 상담중)
+  const handleStartConsulting = useCallback(async (patientId) => {
+    if (!supabase) return;
+
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient || !patient.is_consulting_mode || patient.consulting_actual_start_time) return;
+
+    const actualStartTime = Date.now();
+
+    setPatients(prev => prev.map(p =>
+      p.id === patientId ? {
+        ...p,
+        consulting_actual_start_time: actualStartTime
+      } : p
+    ));
+
+    await supabase.from('wait_patients')
+      .update({
+        consulting_actual_start_time: actualStartTime
+      })
+      .eq('id', patientId);
+  }, [supabase, patients, setPatients]);
+
+  // 상담대기 취소 (이전 상태로 복귀)
+  const handleCancelConsultingWaiting = useCallback(async (patientId) => {
+    if (!supabase) return;
+
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient || !patient.is_consulting_mode || patient.consulting_actual_start_time) return;
+
+    // 해당 의사열의 환자들 중 최대 display_order 찾기
+    const doctorPatients = patients.filter(p =>
+      p.doctor_id === patient.doctor_id &&
+      !p.is_consulting_mode &&
+      !(p.is_staff_mode && p.status === 'treatmenting')
+    );
+    const maxOrder = doctorPatients.length > 0
+      ? Math.max(...doctorPatients.map(p => p.display_order || 0))
+      : 0;
+    const newOrder = maxOrder + 1;
+
+    setPatients(prev => prev.map(p =>
+      p.id === patientId ? {
+        ...p,
+        is_consulting_mode: false,
+        consulting_start_time: null,
+        consulting_actual_start_time: null,
+        display_order: newOrder
+      } : p
+    ));
+
+    await supabase.from('wait_patients')
+      .update({
+        is_consulting_mode: false,
+        consulting_start_time: null,
+        consulting_actual_start_time: null,
+        display_order: newOrder
+      })
+      .eq('id', patientId);
+  }, [supabase, patients, setPatients]);
 
   // 의사 위치 업데이트 (이름 클릭 시)
   const handleDoctorLocationUpdate = useCallback(async (patientId) => {
@@ -374,21 +446,21 @@ function ChairModeWidget({ settings }) {
 
           <span style={{ fontSize: '12px', color: '#888', flex: 1 }}>체어 위젯</span>
 
-          {/* 원장호출 알림 토글 */}
-          <button
-            onClick={() => setDoctorCallEnabled(!doctorCallEnabled)}
-            className={`control-btn ${doctorCallEnabled ? 'active' : ''}`}
-            title={doctorCallEnabled ? '원장호출 알림 켜짐' : '원장호출 알림 꺼짐'}
-          >
-            🔔
-          </button>
-
           {/* 최소화 */}
           <button
             onClick={() => window.electronAPI.minimize()}
             className="control-btn"
           >
             ─
+          </button>
+
+          {/* 세로 크기 토글 */}
+          <button
+            onClick={() => window.electronAPI.toggleHeight()}
+            className="control-btn"
+            title="세로 크기 토글"
+          >
+            ↕
           </button>
 
           {/* 숨기기 */}
@@ -468,6 +540,14 @@ function ChairModeWidget({ settings }) {
                   onStaffMode={handleStaffMode}
                   onExitStaffMode={handleExitStaffMode}
                   onDoctorLocationUpdate={handleDoctorLocationUpdate}
+                  onConsultingMode={handleConsultingMode}
+                  onCancelConsultingWaiting={handleCancelConsultingWaiting}
+                  onStartConsulting={handleStartConsulting}
+                  isReadOnly={selectedDoctorId === 'consulting' || selectedDoctorId === null}
+                  allowCallPatient={selectedDoctorId !== 'consulting' && selectedDoctorId !== 'staff'}
+                  isStaffTab={selectedDoctorId === 'staff'}
+                  isConsultingTab={selectedDoctorId === 'consulting'}
+                  isCallingDoctor={callingPatientId === patient.id}
                 />
               ))
             )}
@@ -484,32 +564,6 @@ function ChairModeWidget({ settings }) {
           )}
         </DragOverlay>
       </DndContext>
-
-      {/* 원장 호출 알림 */}
-      {doctorCall && (
-        <div className="doctor-call-overlay">
-          <div className="doctor-call-card">
-            <div className="doctor-call-header">
-              <span className="doctor-call-icon">🚨</span>
-              <span>원장 호출</span>
-              <button onClick={() => setDoctorCall(null)} className="doctor-call-close">✕</button>
-            </div>
-            <div className="doctor-call-message">
-              {doctorCall.message.split('\n').map((line, i) => (
-                <div key={i} className={
-                  line.startsWith('예약내용:') ? 'detail-cyan' :
-                  line.startsWith('진료메모:') ? 'detail-purple' : ''
-                }>
-                  {line}
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setDoctorCall(null)} className="doctor-call-confirm">
-              확인
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 체어 번호 선택 모달 */}
       {showChairSelect && (
