@@ -42,6 +42,11 @@ function ChairModeWidget({ settings }) {
     return patients.filter(p => p.is_consulting_mode);
   }, [patients]);
 
+  // 회복실 환자 목록
+  const recoveryPatients = useMemo(() => {
+    return patients.filter(p => p.is_recovery_room);
+  }, [patients]);
+
   // 선택된 원장의 환자 목록
   const selectedDoctorPatients = useMemo(() => {
     // 스텝 탭 선택 시
@@ -52,21 +57,25 @@ function ChairModeWidget({ settings }) {
     if (selectedDoctorId === 'consulting') {
       return consultingPatients.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     }
+    // 회복실 탭 선택 시
+    if (selectedDoctorId === 'recovery') {
+      return recoveryPatients.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    }
     // 미분류 탭 선택 시
     if (selectedDoctorId === null) {
       return patients
-        .filter(p => !p.doctor_id && !p.is_consulting_mode)
+        .filter(p => !p.doctor_id && !p.is_consulting_mode && !p.is_recovery_room)
         .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     }
-    // 특정 원장 선택 시 (스텝 모드 환자 제외)
+    // 특정 원장 선택 시 (스텝 모드, 상담, 회복실 환자 제외)
     return patients
-      .filter(p => p.doctor_id === selectedDoctorId && !(p.is_staff_mode && p.status === 'treatmenting') && !p.is_consulting_mode)
+      .filter(p => p.doctor_id === selectedDoctorId && !(p.is_staff_mode && p.status === 'treatmenting') && !p.is_consulting_mode && !p.is_recovery_room)
       .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-  }, [patients, selectedDoctorId, staffModePatients, consultingPatients]);
+  }, [patients, selectedDoctorId, staffModePatients, consultingPatients, recoveryPatients]);
 
   // 원장이 원장실에 있는지 확인 (모든 환자의 current_doctor_location이 null이면 원장실)
   const isDoctorInOffice = useCallback((doctorId) => {
-    if (!doctorId || doctorId === 'staff' || doctorId === 'consulting') return false;
+    if (!doctorId || doctorId === 'staff' || doctorId === 'consulting' || doctorId === 'recovery') return false;
 
     const doctorPatients = patients.filter(p =>
       p.doctor_id === doctorId &&
@@ -84,15 +93,16 @@ function ChairModeWidget({ settings }) {
     const tabs = [];
 
     // 미분류 (대기열)
-    const unassignedCount = patients.filter(p => !p.doctor_id && !p.is_consulting_mode).length;
+    const unassignedCount = patients.filter(p => !p.doctor_id && !p.is_consulting_mode && !p.is_recovery_room).length;
     tabs.push({ id: null, name: '대기열', count: unassignedCount });
 
-    // 각 원장 (스텝 모드 환자 제외)
+    // 각 원장 (스텝 모드, 상담, 회복실 환자 제외)
     doctors.forEach(doc => {
       const count = patients.filter(p =>
         p.doctor_id === doc.id &&
         !(p.is_staff_mode && p.status === 'treatmenting') &&
-        !p.is_consulting_mode
+        !p.is_consulting_mode &&
+        !p.is_recovery_room
       ).length;
       tabs.push({ id: doc.id, name: doc.name, count });
     });
@@ -103,9 +113,12 @@ function ChairModeWidget({ settings }) {
     // 상담 탭
     tabs.push({ id: 'consulting', name: '상담', count: consultingPatients.length });
 
+    // 회복실 탭
+    tabs.push({ id: 'recovery', name: '회복실', count: recoveryPatients.length });
+
     // 0명인 탭 제외
     return tabs.filter(tab => tab.count > 0);
-  }, [doctors, patients, staffModePatients.length, consultingPatients.length]);
+  }, [doctors, patients, staffModePatients.length, consultingPatients.length, recoveryPatients.length]);
 
   // 원장 호출
   const handleCallDoctor = useCallback(async (patientId, patientName, chairNumber, doctorId, requestDetail, staffNotes) => {
@@ -200,6 +213,49 @@ function ChairModeWidget({ settings }) {
       .update({ is_staff_mode: false })
       .eq('id', patientId);
   }, [supabase, setPatients]);
+
+  // 회복실로 이동
+  const handleMoveToRecovery = useCallback(async (patientId) => {
+    if (!supabase) return;
+
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient || patient.status !== 'treatmenting') return;
+
+    setPatients(prev => prev.map(p =>
+      p.id === patientId ? { ...p, is_recovery_room: true } : p
+    ));
+
+    await supabase.from('wait_patients')
+      .update({ is_recovery_room: true })
+      .eq('id', patientId);
+  }, [supabase, patients, setPatients]);
+
+  // 회복실에서 나가기 (진료 또는 완료)
+  const handleExitRecovery = useCallback(async (patientId, newStatus) => {
+    if (!supabase) return;
+
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient || !patient.is_recovery_room) return;
+
+    const updateData = {
+      is_recovery_room: false,
+      status: newStatus,
+    };
+
+    // 완료 시 추가 필드 초기화
+    if (newStatus === 'completed') {
+      updateData.current_doctor_location = null;
+      updateData.is_staff_mode = false;
+    }
+
+    setPatients(prev => prev.map(p =>
+      p.id === patientId ? { ...p, ...updateData } : p
+    ));
+
+    await supabase.from('wait_patients')
+      .update(updateData)
+      .eq('id', patientId);
+  }, [supabase, patients, setPatients]);
 
   // 상담 모드 설정
   const handleConsultingMode = useCallback(async (patientId) => {
@@ -475,7 +531,7 @@ function ChairModeWidget({ settings }) {
         {/* 하단: 원장 탭 - 줄바꿈 가능 */}
         <div className="doctor-tabs" style={{ WebkitAppRegion: 'no-drag', flexWrap: 'wrap' }}>
           {doctorTabs.map(tab => {
-            const isInOffice = tab.id && tab.id !== 'staff' && tab.id !== 'consulting'
+            const isInOffice = tab.id && tab.id !== 'staff' && tab.id !== 'consulting' && tab.id !== 'recovery'
               ? isDoctorInOffice(tab.id)
               : false;
 
@@ -484,7 +540,7 @@ function ChairModeWidget({ settings }) {
                 key={tab.id ?? 'unassigned'}
                 onClick={() => setSelectedDoctorId(tab.id)}
                 onDoubleClick={() => handleDoctorTabDoubleClick(tab.id)}
-                className={`doctor-tab ${selectedDoctorId === tab.id ? 'active' : ''}`}
+                className={`doctor-tab ${selectedDoctorId === tab.id ? 'active' : ''} ${tab.id === 'recovery' ? 'recovery' : ''}`}
                 style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
               >
                 {/* 원장실에 있을 때 아이콘 표시 */}
@@ -494,6 +550,10 @@ function ChairModeWidget({ settings }) {
                 {/* 스텝 탭 아이콘 */}
                 {tab.id === 'staff' && (
                   <img src="./patient_female.png" alt="스텝" style={{ width: '16px', height: '16px', borderRadius: '50%' }} />
+                )}
+                {/* 회복실 탭 아이콘 */}
+                {tab.id === 'recovery' && (
+                  <span style={{ fontSize: '14px' }}>🛏️</span>
                 )}
                 {tab.name} ({tab.count})
               </button>
@@ -518,6 +578,7 @@ function ChairModeWidget({ settings }) {
                 {selectedDoctorId === null ? '대기열이 비어있습니다' :
                  selectedDoctorId === 'staff' ? '스텝 모드 환자가 없습니다' :
                  selectedDoctorId === 'consulting' ? '상담 환자가 없습니다' :
+                 selectedDoctorId === 'recovery' ? '회복실 환자가 없습니다' :
                  '환자가 없습니다'}
               </div>
             ) : (
@@ -529,6 +590,7 @@ function ChairModeWidget({ settings }) {
                   isDoctorHere={
                     selectedDoctorId !== 'staff' &&
                     selectedDoctorId !== 'consulting' &&
+                    selectedDoctorId !== 'recovery' &&
                     patient.current_doctor_location === patient.doctor_id &&
                     patient.current_doctor_location !== null
                   }
@@ -539,13 +601,16 @@ function ChairModeWidget({ settings }) {
                   onStatusChange={handleStatusChange}
                   onStaffMode={handleStaffMode}
                   onExitStaffMode={handleExitStaffMode}
+                  onMoveToRecovery={handleMoveToRecovery}
+                  onExitRecovery={handleExitRecovery}
                   onDoctorLocationUpdate={handleDoctorLocationUpdate}
                   onConsultingMode={handleConsultingMode}
                   onCancelConsultingWaiting={handleCancelConsultingWaiting}
                   onStartConsulting={handleStartConsulting}
-                  isReadOnly={selectedDoctorId === 'consulting' || selectedDoctorId === null}
-                  allowCallPatient={selectedDoctorId !== 'consulting' && selectedDoctorId !== 'staff'}
+                  isReadOnly={selectedDoctorId === 'consulting' || selectedDoctorId === 'recovery' || selectedDoctorId === null}
+                  allowCallPatient={selectedDoctorId !== 'consulting' && selectedDoctorId !== 'staff' && selectedDoctorId !== 'recovery'}
                   isStaffTab={selectedDoctorId === 'staff'}
+                  isRecoveryTab={selectedDoctorId === 'recovery'}
                   isConsultingTab={selectedDoctorId === 'consulting'}
                   isCallingDoctor={callingPatientId === patient.id}
                 />

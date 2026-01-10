@@ -1,6 +1,6 @@
 {
   "name": "chair-widget",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "치과 체어모드 위젯 - 항상 위 오버레이",
   "author": "Dental",
   "main": "src/main/main.js",

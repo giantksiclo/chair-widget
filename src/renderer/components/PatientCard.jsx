@@ -17,10 +17,13 @@ function PatientCard({
   onConsultingMode,
   onCancelConsultingWaiting,
   onStartConsulting,
+  onMoveToRecovery,
+  onExitRecovery,
   isReadOnly = false,
   allowCallPatient = true,
   isStaffTab = false,
   isConsultingTab = false,
+  isRecoveryTab = false,
   isCallingDoctor = false
 }) {
   const [showStatusMenu, setShowStatusMenu] = React.useState(false);
@@ -44,6 +47,7 @@ function PatientCard({
   const isWaiting = patient.status === 'waiting';
   const isTreating = patient.status === 'treatmenting';
   const isStaffMode = patient.is_staff_mode;
+  const isRecoveryRoom = patient.is_recovery_room;
   const isConsultingMode = patient.is_consulting_mode;
   const isConsultingWaiting = isConsultingMode && !patient.consulting_actual_start_time;
   const isConsultingActive = isConsultingMode && patient.consulting_actual_start_time;
@@ -57,6 +61,7 @@ function PatientCard({
 
   // 상태별 색상
   const getStatusColor = () => {
+    if (isRecoveryRoom) return '#a78bfa'; // 보라 (회복실)
     if (isConsultingMode) return '#ec4899'; // 핑크 (상담)
     if (isStaffMode) return '#ec4899'; // 핑크
     if (isTreating) return '#10b981'; // 녹색
@@ -64,6 +69,7 @@ function PatientCard({
   };
 
   const getStatusText = () => {
+    if (isRecoveryRoom) return '회복중';
     if (isConsultingWaiting) return '상담대기';
     if (isConsultingActive) return '상담중';
     if (isStaffMode) return '스텝';
@@ -397,7 +403,7 @@ function PatientCard({
       )}
 
       {/* 스텝 모드 아이콘 */}
-      {isStaffMode && isTreating && (
+      {isStaffMode && isTreating && !isRecoveryRoom && (
         <div
           style={{
             position: 'absolute',
@@ -421,12 +427,37 @@ function PatientCard({
         </div>
       )}
 
+      {/* 회복실 아이콘 */}
+      {isRecoveryRoom && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '-8px',
+            left: '-8px',
+            width: '36px',
+            height: '36px',
+            background: 'linear-gradient(135deg, #a78bfa, #8b5cf6)',
+            border: '3px solid white',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(167, 139, 250, 0.5)',
+            zIndex: 10,
+            animation: 'pulse 2s infinite',
+            fontSize: '18px'
+          }}
+        >
+          🛏️
+        </div>
+      )}
+
       {/* 첫번째 줄: 체어번호 + 상태 + 이름 + 시간 */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        paddingLeft: (isDoctorHere || isStaffMode) ? '32px' : '0'
+        paddingLeft: (isDoctorHere || isStaffMode || isRecoveryRoom) ? '32px' : '0'
       }}>
         {/* 체어번호 - 클릭 시 체어 선택 */}
         <div
@@ -533,24 +564,6 @@ function PatientCard({
                   }}
                 >
                   진료중
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleStatusSelect('staff'); }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '8px 12px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    background: isStaffMode ? '#ec489933' : 'transparent',
-                    border: 'none',
-                    borderRadius: '4px',
-                    color: '#ec4899',
-                    cursor: 'pointer',
-                    textAlign: 'left'
-                  }}
-                >
-                  스텝
                 </button>
                 <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
                 <button
@@ -803,9 +816,49 @@ function PatientCard({
           </button>
         )}
 
-        {/* 스텝/의사 버튼 - 스텝탭에서는 의사/완료만, 일반탭에서는 스텝/완료 */}
+        {/* 스텝/의사/회복실/완료 버튼 - 탭에 따라 다르게 표시 */}
         {isTreating && (
-          isStaffTab ? (
+          isRecoveryTab ? (
+            // 회복실탭: 진료/완료 버튼
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExitRecovery?.(patient.id, 'waiting');
+                }}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  background: 'rgba(245, 158, 11, 0.2)',
+                  border: '1px solid #f59e0b',
+                  borderRadius: '6px',
+                  color: '#fbbf24',
+                  cursor: 'pointer'
+                }}
+              >
+                🏥 진료
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExitRecovery?.(patient.id, 'completed');
+                }}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  background: 'rgba(16, 185, 129, 0.2)',
+                  border: '1px solid #10b981',
+                  borderRadius: '6px',
+                  color: '#34d399',
+                  cursor: 'pointer'
+                }}
+              >
+                ✓ 완료
+              </button>
+            </>
+          ) : isStaffTab ? (
             // 스텝탭: 의사/완료 버튼만
             <>
               <button
@@ -840,7 +893,7 @@ function PatientCard({
               </button>
             </>
           ) : (
-            // 일반탭: 스텝/의사/완료 버튼
+            // 일반탭: 스텝/의사 + 회복실(회복실아닐때) + 완료 버튼
             <>
               <button
                 onClick={handleStepOrDoctor}
@@ -857,6 +910,26 @@ function PatientCard({
               >
                 {isStaffMode ? '👨‍⚕️ 의사' : '👩‍⚕️ 스텝'}
               </button>
+              {!isRecoveryRoom && onMoveToRecovery && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMoveToRecovery(patient.id);
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    background: 'rgba(167, 139, 250, 0.2)',
+                    border: '1px solid #a78bfa',
+                    borderRadius: '6px',
+                    color: '#c4b5fd',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🛏️ 회복실
+                </button>
+              )}
               <button
                 onClick={handleComplete}
                 style={{

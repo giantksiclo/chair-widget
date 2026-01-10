@@ -68,6 +68,23 @@
   color: #fff;
 }
 
+/* 회복실 탭 */
+.doctor-tab.recovery {
+  background: rgba(167, 139, 250, 0.2);
+  border-color: #a78bfa;
+  color: #c4b5fd;
+}
+
+.doctor-tab.recovery:hover {
+  background: rgba(167, 139, 250, 0.3);
+}
+
+.doctor-tab.recovery.active {
+  background: #a78bfa;
+  border-color: #c4b5fd;
+  color: #fff;
+}
+
 /* 헤더 컨트롤 버튼 */
 .control-btn {
   width: 28px;
