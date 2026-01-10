@@ -214,7 +214,7 @@ function ChairModeWidget({ settings }) {
       .eq('id', patientId);
   }, [supabase, setPatients]);
 
-  // 회복실로 이동
+  // 회복실로 이동 - 체어번호, 원장 위치 초기화 (ArrangePage와 동일)
   const handleMoveToRecovery = useCallback(async (patientId) => {
     if (!supabase) return;
 
@@ -222,11 +222,22 @@ function ChairModeWidget({ settings }) {
     if (!patient || patient.status !== 'treatmenting') return;
 
     setPatients(prev => prev.map(p =>
-      p.id === patientId ? { ...p, is_recovery_room: true } : p
+      p.id === patientId
+        ? {
+            ...p,
+            is_recovery_room: true,
+            chair_number: null,
+            current_doctor_location: null
+          }
+        : p
     ));
 
     await supabase.from('wait_patients')
-      .update({ is_recovery_room: true })
+      .update({
+        is_recovery_room: true,
+        chair_number: null,
+        current_doctor_location: null
+      })
       .eq('id', patientId);
   }, [supabase, patients, setPatients]);
 
