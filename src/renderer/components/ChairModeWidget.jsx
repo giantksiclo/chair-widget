@@ -299,6 +299,43 @@ function ChairModeWidget({ settings }) {
       .eq('id', patientId);
   }, [supabase, patients, setPatients]);
 
+  // 상담열로 이동 - 체어번호 초기화, 상태 대기중, 상담모드 설정 (컨텍스트 메뉴용)
+  const handleMoveToConsulting = useCallback(async (patientId) => {
+    if (!supabase) return;
+
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return;
+
+    const consultingStartTime = Date.now();
+
+    setPatients(prev => prev.map(p =>
+      p.id === patientId
+        ? {
+            ...p,
+            is_consulting_mode: true,
+            consulting_start_time: consultingStartTime,
+            consulting_actual_start_time: null,
+            status: 'waiting',
+            chair_number: null,
+            current_doctor_location: null,
+            is_staff_mode: false
+          }
+        : p
+    ));
+
+    await supabase.from('wait_patients')
+      .update({
+        is_consulting_mode: true,
+        consulting_start_time: consultingStartTime,
+        consulting_actual_start_time: null,
+        status: 'waiting',
+        chair_number: null,
+        current_doctor_location: null,
+        is_staff_mode: false
+      })
+      .eq('id', patientId);
+  }, [supabase, patients, setPatients]);
+
   // 상담 시작 (상담대기 → 상담중)
   const handleStartConsulting = useCallback(async (patientId) => {
     if (!supabase) return;
@@ -620,6 +657,7 @@ function ChairModeWidget({ settings }) {
                   onExitRecovery={handleExitRecovery}
                   onDoctorLocationUpdate={handleDoctorLocationUpdate}
                   onConsultingMode={handleConsultingMode}
+                  onMoveToConsulting={handleMoveToConsulting}
                   onCancelConsultingWaiting={handleCancelConsultingWaiting}
                   onStartConsulting={handleStartConsulting}
                   isReadOnly={selectedDoctorId === 'consulting' || selectedDoctorId === 'recovery' || selectedDoctorId === null}

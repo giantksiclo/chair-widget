@@ -15,6 +15,7 @@ function PatientCard({
   onExitStaffMode,
   onDoctorLocationUpdate,
   onConsultingMode,
+  onMoveToConsulting,
   onCancelConsultingWaiting,
   onStartConsulting,
   onMoveToRecovery,
@@ -427,28 +428,32 @@ function PatientCard({
         </div>
       )}
 
-      {/* 회복실 아이콘 */}
-      {isRecoveryRoom && (
+      {/* 원장 회신 표시 - 우측 상단 오버레이 */}
+      {doctorReply && !isStaffMode && (
         <div
           style={{
             position: 'absolute',
             top: '-8px',
-            left: '-8px',
+            right: '-8px',
             width: '36px',
             height: '36px',
-            background: 'linear-gradient(135deg, #a78bfa, #8b5cf6)',
+            background: 'linear-gradient(135deg, #10b981, #059669)',
             border: '3px solid white',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(167, 139, 250, 0.5)',
+            fontSize: '0.85rem',
+            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.5)',
             zIndex: 10,
-            animation: 'pulse 2s infinite',
-            fontSize: '18px'
+            animation: 'pulse 1s infinite'
           }}
         >
-          🛏️
+          {doctorReply.reply === '갈게요' ? '🏃' :
+           doctorReply.reply === '5분후' ? '⏰5' :
+           doctorReply.reply === '10분후' ? '⏰10' :
+           doctorReply.reply === '확인' ? '✅' :
+           '💬'}
         </div>
       )}
 
@@ -457,7 +462,7 @@ function PatientCard({
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        paddingLeft: (isDoctorHere || isStaffMode || isRecoveryRoom) ? '32px' : '0'
+        paddingLeft: (isDoctorHere || isStaffMode) ? '32px' : '0'
       }}>
         {/* 체어번호 - 클릭 시 체어 선택 (회복실 환자는 비활성화) */}
         <div
@@ -585,6 +590,58 @@ function PatientCard({
                 >
                   완료
                 </button>
+                {/* 상담/회복실 옵션 */}
+                {!isConsultingMode && !isRecoveryRoom && (
+                  <>
+                    <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowStatusMenu(false);
+                        onMoveToConsulting?.(patient.id);
+                      }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: '#f472b6',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      💬 상담
+                    </button>
+                  </>
+                )}
+                {isTreating && !isRecoveryRoom && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowStatusMenu(false);
+                      onMoveToRecovery?.(patient.id);
+                    }}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '4px',
+                      color: '#a78bfa',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    🛏️ 회복실
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -726,23 +783,6 @@ function PatientCard({
         marginTop: '4px',
         alignItems: 'center'
       }}>
-        {/* 원장 회신 아이콘 - 진료중 & 스텝모드 아닐 때만 표시 */}
-        {isTreating && !isStaffMode && doctorReply && (
-          <span style={{
-            fontSize: '16px',
-            padding: '4px 8px',
-            background: 'rgba(16, 185, 129, 0.2)',
-            borderRadius: '6px',
-            border: '1px solid #10b981'
-          }}>
-            {doctorReply.reply === '갈게요' ? '🏃' :
-             doctorReply.reply === '5분후' ? '⏰5분' :
-             doctorReply.reply === '10분후' ? '⏰10분' :
-             doctorReply.reply === '확인' ? '✅' :
-             doctorReply.reply}
-          </span>
-        )}
-
         {/* 원장 호출 버튼 - 스텝모드/상담탭 아닐 때만 */}
         {allowCallPatient && isTreating && !isStaffMode && patient.chair_number && (
           <button
@@ -860,7 +900,7 @@ function PatientCard({
               </button>
             </>
           ) : isStaffTab ? (
-            // 스텝탭: 의사/회복실/완료 버튼
+            // 스텝탭: 의사/완료 버튼
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); onExitStaffMode(patient.id); }}
@@ -877,26 +917,6 @@ function PatientCard({
               >
                 👨‍⚕️ 의사
               </button>
-              {!isRecoveryRoom && onMoveToRecovery && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMoveToRecovery(patient.id);
-                  }}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    background: 'rgba(167, 139, 250, 0.2)',
-                    border: '1px solid #a78bfa',
-                    borderRadius: '6px',
-                    color: '#c4b5fd',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🛏️ 회복실
-                </button>
-              )}
               <button
                 onClick={handleComplete}
                 style={{
@@ -914,7 +934,7 @@ function PatientCard({
               </button>
             </>
           ) : (
-            // 일반탭: 스텝/의사 + 회복실(회복실아닐때) + 완료 버튼
+            // 일반탭: 스텝/의사 + 완료 버튼
             <>
               <button
                 onClick={handleStepOrDoctor}
@@ -931,26 +951,6 @@ function PatientCard({
               >
                 {isStaffMode ? '👨‍⚕️ 의사' : '👩‍⚕️ 스텝'}
               </button>
-              {!isRecoveryRoom && onMoveToRecovery && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMoveToRecovery(patient.id);
-                  }}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    background: 'rgba(167, 139, 250, 0.2)',
-                    border: '1px solid #a78bfa',
-                    borderRadius: '6px',
-                    color: '#c4b5fd',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🛏️ 회복실
-                </button>
-              )}
               <button
                 onClick={handleComplete}
                 style={{
