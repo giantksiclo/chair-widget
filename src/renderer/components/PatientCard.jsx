@@ -428,8 +428,8 @@ function PatientCard({
         </div>
       )}
 
-      {/* 원장 회신 표시 - 우측 상단 오버레이 */}
-      {doctorReply && !isStaffMode && (
+      {/* 원장 회신 표시 - 우측 상단 오버레이 (회복실, 대기열 제외) */}
+      {doctorReply && !isStaffMode && !isRecoveryRoom && patient.doctor_id && (
         <div
           style={{
             position: 'absolute',
