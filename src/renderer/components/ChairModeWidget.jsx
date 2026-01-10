@@ -228,7 +228,8 @@ function ChairModeWidget({ settings }) {
             is_recovery_room: true,
             chair_number: null,
             current_doctor_location: null,
-            is_staff_mode: false
+            is_staff_mode: false,
+            doctor_id: null
           }
         : p
     ));
@@ -238,7 +239,8 @@ function ChairModeWidget({ settings }) {
         is_recovery_room: true,
         chair_number: null,
         current_doctor_location: null,
-        is_staff_mode: false
+        is_staff_mode: false,
+        doctor_id: null
       })
       .eq('id', patientId);
   }, [supabase, patients, setPatients]);
