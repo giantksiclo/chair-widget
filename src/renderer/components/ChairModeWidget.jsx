@@ -214,7 +214,7 @@ function ChairModeWidget({ settings }) {
       .eq('id', patientId);
   }, [supabase, setPatients]);
 
-  // 회복실로 이동 - 체어번호, 원장 위치 초기화 (ArrangePage와 동일)
+  // 회복실로 이동 - 체어번호, 원장 위치, 스텝모드 초기화
   const handleMoveToRecovery = useCallback(async (patientId) => {
     if (!supabase) return;
 
@@ -227,7 +227,8 @@ function ChairModeWidget({ settings }) {
             ...p,
             is_recovery_room: true,
             chair_number: null,
-            current_doctor_location: null
+            current_doctor_location: null,
+            is_staff_mode: false
           }
         : p
     ));
@@ -236,7 +237,8 @@ function ChairModeWidget({ settings }) {
       .update({
         is_recovery_room: true,
         chair_number: null,
-        current_doctor_location: null
+        current_doctor_location: null,
+        is_staff_mode: false
       })
       .eq('id', patientId);
   }, [supabase, patients, setPatients]);

@@ -459,24 +459,25 @@ function PatientCard({
         gap: '10px',
         paddingLeft: (isDoctorHere || isStaffMode || isRecoveryRoom) ? '32px' : '0'
       }}>
-        {/* 체어번호 - 클릭 시 체어 선택 */}
+        {/* 체어번호 - 클릭 시 체어 선택 (회복실 환자는 비활성화) */}
         <div
           onClick={(e) => {
             e.stopPropagation();
-            if (onChairClick) {
+            if (onChairClick && !isRecoveryRoom) {
               onChairClick(patient.id, patient.chair_number);
             }
           }}
           style={{
             fontSize: '1.8rem',
             fontWeight: 'bold',
-            color: patient.chair_number ? '#10b981' : '#666',
+            color: isRecoveryRoom ? '#666' : (patient.chair_number ? '#10b981' : '#666'),
             minWidth: '40px',
             textAlign: 'center',
-            cursor: 'pointer',
+            cursor: isRecoveryRoom ? 'default' : 'pointer',
             padding: '4px',
             borderRadius: '8px',
-            transition: 'background 0.2s'
+            transition: 'background 0.2s',
+            opacity: isRecoveryRoom ? 0.5 : 1
           }}
         >
           {patient.chair_number || '-'}
@@ -859,7 +860,7 @@ function PatientCard({
               </button>
             </>
           ) : isStaffTab ? (
-            // 스텝탭: 의사/완료 버튼만
+            // 스텝탭: 의사/회복실/완료 버튼
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); onExitStaffMode(patient.id); }}
@@ -876,6 +877,26 @@ function PatientCard({
               >
                 👨‍⚕️ 의사
               </button>
+              {!isRecoveryRoom && onMoveToRecovery && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMoveToRecovery(patient.id);
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    background: 'rgba(167, 139, 250, 0.2)',
+                    border: '1px solid #a78bfa',
+                    borderRadius: '6px',
+                    color: '#c4b5fd',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🛏️ 회복실
+                </button>
+              )}
               <button
                 onClick={handleComplete}
                 style={{
